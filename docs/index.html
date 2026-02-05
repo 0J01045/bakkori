@@ -3,95 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格オセロ - GitHub Pages</title>
+    <title>本格オセロ - 2人対戦 ＆ 最強AI</title>
     <style>
-        /* 全体の背景を落ち着いた緑色に設定 */
         body { 
             font-family: 'Helvetica Neue', Arial, sans-serif; 
             text-align: center; 
-            background: #2e7d32; 
+            background: #1b3022; 
             color: white; 
             margin: 0;
             padding: 20px;
         }
 
-        h1 { margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        h1 { margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+
+        /* メニュー画面 */
+        #menu { margin-bottom: 20px; }
+        .mode-btn {
+            background: #444; color: white; border: 2px solid #666;
+            padding: 10px 20px; margin: 5px; border-radius: 8px; cursor: pointer;
+            font-size: 16px; transition: 0.3s;
+        }
+        .mode-btn.active { background: #2e7d32; border-color: #fff; box-shadow: 0 0 10px #fff; }
 
         .info-panel {
             background: rgba(0,0,0,0.4);
-            padding: 15px;
-            border-radius: 15px;
-            display: inline-block;
-            margin-bottom: 20px;
+            padding: 15px; border-radius: 15px;
+            display: inline-block; margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            min-width: 250px;
         }
 
-        .status { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .status { font-size: 22px; font-weight: bold; margin-bottom: 8px; color: #ffeb3b; }
         .score { font-size: 18px; color: #ecf0f1; }
 
-        /* 盤面：背景を黒にすることで gap が「線」に見える */
+        /* 盤面 */
         #board { 
             display: grid; 
             grid-template-columns: repeat(8, 1fr); 
             grid-template-rows: repeat(8, 1fr);
-            width: 90vw; 
-            max-width: 400px; 
-            height: 90vw; 
-            max-height: 400px;
+            width: 90vw; max-width: 400px; height: 90vw; max-height: 400px;
             margin: 0 auto; 
-            background: #000000; /* 線の色 */
-            border: 4px solid #000000; 
-            gap: 2px; /* 線の太さ */
+            background: #000; border: 4px solid #000; gap: 2px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
 
-        /* マス目 */
         .cell { 
-            background: #2e7d32; /* マスの緑色 */
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            position: relative;
-            cursor: pointer;
+            background: #2e7d32; display: flex; align-items: center; justify-content: center; 
+            position: relative; cursor: pointer;
         }
 
-        /* 石のデザイン */
         .piece { 
             width: 85%; height: 85%; border-radius: 50%; 
-            transition: all 0.4s ease-out;
+            transition: transform 0.4s ease-out, background-color 0.4s;
             box-shadow: 0 4px 8px rgba(0,0,0,0.4);
         }
         .black { background: #111; }
-        .white { background: #fff; }
+        .white { background: #fff; transform: rotateY(0deg); }
+        .flip { transform: rotateY(180deg); }
 
-        /* ガイド（置ける場所） */
         .guide { 
             width: 12px; height: 12px; 
-            background: rgba(255,255,255,0.25); 
-            border-radius: 50%; 
+            background: rgba(255,255,255,0.25); border-radius: 50%; 
         }
-        .cell:hover .guide { background: rgba(255,255,255,0.5); }
 
-        /* リセットボタン */
-        button { 
-            margin-top: 30px; 
-            padding: 12px 35px; 
-            font-size: 18px; 
-            font-weight: bold;
-            background: #c62828; 
-            color: white; 
-            border: none; 
-            border-radius: 30px; 
-            cursor: pointer;
-            box-shadow: 0 4px 0 #8e0000;
+        .reset-btn { 
+            margin-top: 30px; padding: 12px 35px; font-size: 18px; font-weight: bold;
+            background: #c62828; color: white; border: none; border-radius: 30px; 
+            cursor: pointer; box-shadow: 0 4px 0 #8e0000;
         }
-        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #8e0000; }
+        .reset-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #8e0000; }
     </style>
 </head>
 <body>
 
-    <h1>Othello Online</h1>
+    <h1>Othello Elite</h1>
     
+    <div id="menu">
+        <button class="mode-btn active" id="mode1" onclick="setMode(1)">1台で2人対戦</button>
+        <button class="mode-btn" id="mode2" onclick="setMode(2)">最強AIと対戦</button>
+    </div>
+
     <div class="info-panel">
         <div class="status" id="msg">黒の番です</div>
         <div class="score" id="score">黒: 2 / 白: 2</div>
@@ -99,22 +90,41 @@
 
     <div id="board"></div>
 
-    <button onclick="init()">ゲームをリセット</button>
+    <button class="reset-btn" onclick="init()">リセット</button>
 
 <script>
     let board = [];
     let turn = 1; // 1:黒, 2:白
+    let gameMode = 1; // 1:2人対戦, 2:AI対戦
+    let isThinking = false;
 
-    // ゲームの初期化
+    // AI用評価テーブル
+    const evalTable = [
+        [100, -40, 20,  5,  5, 20, -40, 100],
+        [-40, -80, -1, -1, -1, -1, -80, -40],
+        [ 20,  -1,  5,  1,  1,  5,  -1,  20],
+        [  5,  -1,  1,  0,  0,  1,  -1,   5],
+        [  5,  -1,  1,  0,  0,  1,  -1,   5],
+        [ 20,  -1,  5,  1,  1,  5,  -1,  20],
+        [-40, -80, -1, -1, -1, -1, -80, -40],
+        [100, -40, 20,  5,  5, 20, -40, 100]
+    ];
+
+    function setMode(m) {
+        gameMode = m;
+        document.getElementById('mode1').classList.toggle('active', m === 1);
+        document.getElementById('mode2').classList.toggle('active', m === 2);
+        init();
+    }
+
     function init() {
         board = Array.from({length: 8}, () => Array(8).fill(0));
-        board[3][3] = board[4][4] = 2; // 白
-        board[3][4] = board[4][3] = 1; // 黒
+        board[3][3] = board[4][4] = 2; board[3][4] = board[4][3] = 1;
         turn = 1;
+        isThinking = false;
         draw();
     }
 
-    // 画面の再描画
     function draw() {
         const boardElm = document.getElementById('board');
         boardElm.innerHTML = '';
@@ -124,84 +134,117 @@
             for (let x = 0; x < 8; x++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
+                const flipCount = checkFlip(board, x, y, turn, false);
                 
-                const flipCount = checkFlip(x, y, turn, false);
-                
-                if (board[y][x] === 1) {
-                    cell.innerHTML = '<div class="piece black"></div>';
-                } else if (board[y][x] === 2) {
-                    cell.innerHTML = '<div class="piece white"></div>';
-                } else if (flipCount > 0) {
+                if (board[y][x] === 1) cell.innerHTML = '<div class="piece black"></div>';
+                else if (board[y][x] === 2) cell.innerHTML = '<div class="piece white"></div>';
+                else if (flipCount > 0 && !isThinking) {
                     cell.innerHTML = '<div class="guide"></div>';
-                    cell.onclick = () => { place(x, y); };
+                    cell.onclick = () => { if(!(gameMode===2 && turn===2)) place(x, y); };
                     canMoveCount++;
                 }
                 boardElm.appendChild(cell);
             }
         }
-        
         updateUI(canMoveCount);
+
+        if (gameMode === 2 && turn === 2 && canMoveCount > 0 && !isThinking) {
+            isThinking = true;
+            setTimeout(aiTurn, 700);
+        }
     }
 
-    // UI情報の更新
+    function aiTurn() {
+        const moves = getValidMoves(board, 2);
+        let bestMove = moves[0];
+        let bestScore = -Infinity;
+
+        for (let move of moves) {
+            let tempBoard = JSON.parse(JSON.stringify(board));
+            checkFlip(tempBoard, move.x, move.y, 2, true);
+            tempBoard[move.y][move.x] = 2;
+            let score = minimax(tempBoard, 3, false); // 3手先読み
+            if (score > bestScore) { bestScore = score; bestMove = move; }
+        }
+        isThinking = false;
+        place(bestMove.x, bestMove.y);
+    }
+
+    function minimax(vBoard, depth, isMax) {
+        if (depth === 0) return evaluate(vBoard);
+        const color = isMax ? 2 : 1;
+        const moves = getValidMoves(vBoard, color);
+        if (moves.length === 0) return evaluate(vBoard);
+
+        let res = isMax ? -Infinity : Infinity;
+        for (let m of moves) {
+            let next = JSON.parse(JSON.stringify(vBoard));
+            checkFlip(next, m.x, m.y, color, true);
+            next[m.y][m.x] = color;
+            let s = minimax(next, depth - 1, !isMax);
+            res = isMax ? Math.max(res, s) : Math.min(res, s);
+        }
+        return res;
+    }
+
+    function evaluate(vBoard) {
+        let s = 0;
+        for(let y=0; y<8; y++) for(let x=0; x<8; x++){
+            if(vBoard[y][x]===2) s += evalTable[y][x];
+            if(vBoard[y][x]===1) s -= evalTable[y][x];
+        }
+        return s;
+    }
+
+    function getValidMoves(vBoard, color) {
+        let m = [];
+        for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(checkFlip(vBoard, x, y, color, false) > 0) m.push({x, y});
+        return m;
+    }
+
     function updateUI(canMoveCount) {
         const msg = document.getElementById('msg');
-        const scoreElm = document.getElementById('score');
         const score = getScore();
-        
-        scoreElm.innerText = `黒: ${score.b} 枚 / 白: ${score.w} 枚`;
+        document.getElementById('score').innerText = `黒: ${score.b} 枚 / 白: ${score.w} 枚`;
 
         if (canMoveCount === 0) {
-            // パスまたは終局判定
-            const nextPlayer = (turn === 1) ? 2 : 1;
-            if (hasAnyMove(nextPlayer)) {
+            const nextP = (turn === 1) ? 2 : 1;
+            if (getValidMoves(board, nextP).length > 0) {
                 msg.innerText = (turn === 1 ? "黒" : "白") + "はパスです";
-                turn = nextPlayer;
-                setTimeout(draw, 1000);
+                turn = nextP; setTimeout(draw, 1000);
             } else {
                 msg.innerText = `終局！ ${score.b > score.w ? '黒の勝ち' : score.w > score.b ? '白の勝ち' : '引き分け'}`;
             }
         } else {
-            msg.innerText = (turn === 1 ? "黒" : "白") + "の番です";
+            if(gameMode === 2 && turn === 2) msg.innerText = "AIが考え中...";
+            else msg.innerText = (turn === 1 ? "黒" : "白") + "の番です";
         }
     }
 
-    // 石を置く処理
     function place(x, y) {
-        checkFlip(x, y, turn, true);
+        checkFlip(board, x, y, turn, true);
         board[y][x] = turn;
         turn = (turn === 1) ? 2 : 1;
         draw();
     }
 
-    // 挟める石があるかチェック / ひっくり返す
-    function checkFlip(x, y, color, doFlip) {
-        if (board[y][x] !== 0) return 0;
+    function checkFlip(vBoard, x, y, color, doFlip) {
+        if (vBoard[y][x] !== 0) return 0;
         let total = 0;
         const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-
         for (let [dy, dx] of dirs) {
-            let tx = x + dx, ty = y + dy;
-            let cells = [];
-            while (ty>=0 && ty<8 && tx>=0 && tx<8 && board[ty][tx] !== 0 && board[ty][tx] !== color) {
-                cells.push([ty, tx]);
-                ty += dy; tx += dx;
+            let tx = x + dx, ty = y + dy, cells = [];
+            while (ty>=0 && ty<8 && tx>=0 && tx<8 && vBoard[ty][tx] !== 0 && vBoard[ty][tx] !== color) {
+                cells.push([ty, tx]); ty += dy; tx += dx;
             }
-            if (ty>=0 && ty<8 && tx>=0 && tx<8 && board[ty][tx] === color && cells.length > 0) {
+            if (ty>=0 && ty<8 && tx>=0 && tx<8 && vBoard[ty][tx] === color && cells.length > 0) {
                 total += cells.length;
-                if (doFlip) cells.forEach(([py, px]) => board[py][px] = color);
+                if (doFlip) cells.forEach(([py, px]) => vBoard[py][px] = color);
             }
         }
         return total;
     }
 
-    // 指定した色のプレイヤーが打てる場所があるか
-    function hasAnyMove(color) {
-        for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(checkFlip(x, y, color, false) > 0) return true;
-        return false;
-    }
-
-    // スコア集計
     function getScore() {
         let b = 0, w = 0;
         board.flat().forEach(v => { if(v===1) b++; if(v===2) w++; });
