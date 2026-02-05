@@ -3,221 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格オセロ - 2人対戦 ＆ 最強AI</title>
+    <title>Othello Zero - 統合版</title>
     <style>
-        body { 
-            font-family: 'Helvetica Neue', Arial, sans-serif; 
-            text-align: center; 
-            background: #1b3022; 
-            color: white; 
-            margin: 0;
-            padding: 20px;
-        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: #0a1a0f; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        
+        h1 { margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 
-        h1 { margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-
-        /* メニュー画面 */
-        #menu { margin-bottom: 20px; }
+        /* モード切り替えボタン */
+        #menu { margin-bottom: 15px; display: flex; justify-content: center; gap: 10px; }
         .mode-btn {
-            background: #444; color: white; border: 2px solid #666;
-            padding: 10px 20px; margin: 5px; border-radius: 8px; cursor: pointer;
-            font-size: 16px; transition: 0.3s;
+            background: #1f3a26; color: #aaa; border: 1px solid #444;
+            padding: 8px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; transition: 0.3s;
         }
-        .mode-btn.active { background: #2e7d32; border-color: #fff; box-shadow: 0 0 10px #fff; }
-
-        .info-panel {
-            background: rgba(0,0,0,0.4);
-            padding: 15px; border-radius: 15px;
-            display: inline-block; margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            min-width: 250px;
+        .mode-btn.active { 
+            background: #4caf50; color: white; border-color: #4caf50; 
+            box-shadow: 0 0 10px rgba(76,175,80,0.4); font-weight: bold;
         }
 
-        .status { font-size: 22px; font-weight: bold; margin-bottom: 8px; color: #ffeb3b; }
-        .score { font-size: 18px; color: #ecf0f1; }
-
-        /* 盤面 */
+        .info-panel { background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #2e7d32; }
+        .status { font-size: 22px; font-weight: bold; color: #4caf50; margin-bottom: 5px; }
+        
         #board { 
-            display: grid; 
-            grid-template-columns: repeat(8, 1fr); 
-            grid-template-rows: repeat(8, 1fr);
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
             width: 90vw; max-width: 400px; height: 90vw; max-height: 400px;
-            margin: 0 auto; 
-            background: #000; border: 4px solid #000; gap: 2px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            margin: 0 auto; background: #000; border: 6px solid #1b3022; gap: 2px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
-        .cell { 
-            background: #2e7d32; display: flex; align-items: center; justify-content: center; 
-            position: relative; cursor: pointer;
-        }
-
-        .piece { 
-            width: 85%; height: 85%; border-radius: 50%; 
-            transition: transform 0.4s ease-out, background-color 0.4s;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-        }
-        .black { background: #111; }
-        .white { background: #fff; transform: rotateY(0deg); }
-        .flip { transform: rotateY(180deg); }
-
-        .guide { 
-            width: 12px; height: 12px; 
-            background: rgba(255,255,255,0.25); border-radius: 50%; 
-        }
-
+        .cell { background: #1a4d2e; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+        .cell:nth-child(odd) { background: #1d5534; }
+        
+        .piece { width: 88%; height: 88%; border-radius: 50%; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+        .black { background: radial-gradient(circle at 30% 30%, #444, #000); }
+        .white { background: radial-gradient(circle at 30% 30%, #fff, #ccc); }
+        
+        .guide { width: 14px; height: 14px; background: rgba(255,255,255,0.15); border-radius: 50%; }
+        
         .reset-btn { 
-            margin-top: 30px; padding: 12px 35px; font-size: 18px; font-weight: bold;
-            background: #c62828; color: white; border: none; border-radius: 30px; 
-            cursor: pointer; box-shadow: 0 4px 0 #8e0000;
+            margin-top: 25px; padding: 10px 30px; font-size: 16px; font-weight: bold; 
+            border-radius: 20px; border: none; cursor: pointer; 
+            background: #c62828; color: white; box-shadow: 0 4px 0 #8e0000;
         }
         .reset-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #8e0000; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>Othello Zero</h1>
+        
+        <div id="menu">
+            <button class="mode-btn active" id="mode1" onclick="setMode(1)">対人戦 (2人)</button>
+            <button class="mode-btn" id="mode2" onclick="setMode(2)">VS 究極AI</button>
+        </div>
 
-    <h1>Othello Elite</h1>
-    
-    <div id="menu">
-        <button class="mode-btn active" id="mode1" onclick="setMode(1)">1台で2人対戦</button>
-        <button class="mode-btn" id="mode2" onclick="setMode(2)">最強AIと対戦</button>
+        <div class="info-panel">
+            <div class="status" id="msg">対局開始</div>
+            <div id="score">黒: 2 / 白: 2</div>
+        </div>
+        <div id="board"></div>
+        <button class="reset-btn" onclick="init()">リセット</button>
     </div>
-
-    <div class="info-panel">
-        <div class="status" id="msg">黒の番です</div>
-        <div class="score" id="score">黒: 2 / 白: 2</div>
-    </div>
-
-    <div id="board"></div>
-
-    <button class="reset-btn" onclick="init()">リセット</button>
 
 <script>
     let board = [];
-    let turn = 1; // 1:黒, 2:白
-    let gameMode = 1; // 1:2人対戦, 2:AI対戦
+    let turn = 1; 
+    let gameMode = 1; // 1:対人, 2:対AI
     let isThinking = false;
 
-    // AI用評価テーブル
-    const evalTable = [
-        [100, -40, 20,  5,  5, 20, -40, 100],
-        [-40, -80, -1, -1, -1, -1, -80, -40],
-        [ 20,  -1,  5,  1,  1,  5,  -1,  20],
-        [  5,  -1,  1,  0,  0,  1,  -1,   5],
-        [  5,  -1,  1,  0,  0,  1,  -1,   5],
-        [ 20,  -1,  5,  1,  1,  5,  -1,  20],
-        [-40, -80, -1, -1, -1, -1, -80, -40],
-        [100, -40, 20,  5,  5, 20, -40, 100]
+    // 究極評価テーブル（ベース）
+    const BASE_EVAL = [
+        [1000, -150, 30, 10, 10, 30, -150, 1000],
+        [-150, -250,  0,  0,  0,  0, -250, -150],
+        [  30,    0, 10,  2,  2, 10,    0,   30],
+        [  10,    0,  2,  1,  1,  2,    0,   10],
+        [  10,    0,  2,  1,  1,  2,    0,   10],
+        [  30,    0, 10,  2,  2, 10,    0,   30],
+        [-150, -250,  0,  0,  0,  0, -250, -150],
+        [1000, -150, 30, 10, 10, 30, -150, 1000]
     ];
 
     function setMode(m) {
         gameMode = m;
-        document.getElementById('mode1').classList.toggle('active', m === 1);
-        document.getElementById('mode2').classList.toggle('active', m === 2);
+        document.getElementById('mode1').className = m===1 ? 'mode-btn active' : 'mode-btn';
+        document.getElementById('mode2').className = m===2 ? 'mode-btn active' : 'mode-btn';
         init();
     }
 
     function init() {
         board = Array.from({length: 8}, () => Array(8).fill(0));
         board[3][3] = board[4][4] = 2; board[3][4] = board[4][3] = 1;
-        turn = 1;
-        isThinking = false;
+        turn = 1; isThinking = false;
         draw();
     }
 
     function draw() {
         const boardElm = document.getElementById('board');
         boardElm.innerHTML = '';
-        let canMoveCount = 0;
+        const moves = getValidMoves(board, turn);
 
         for (let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
-                const flipCount = checkFlip(board, x, y, turn, false);
-                
                 if (board[y][x] === 1) cell.innerHTML = '<div class="piece black"></div>';
                 else if (board[y][x] === 2) cell.innerHTML = '<div class="piece white"></div>';
-                else if (flipCount > 0 && !isThinking) {
-                    cell.innerHTML = '<div class="guide"></div>';
-                    cell.onclick = () => { if(!(gameMode===2 && turn===2)) place(x, y); };
-                    canMoveCount++;
+                else if (moves.some(m => m.x === x && m.y === y) && !isThinking) {
+                    // 対AIモードでAIの番(turn2)のときはクリックさせない
+                    if (!(gameMode === 2 && turn === 2)) {
+                        cell.innerHTML = '<div class="guide"></div>';
+                        cell.onclick = () => { place(x, y); };
+                    }
                 }
                 boardElm.appendChild(cell);
             }
         }
-        updateUI(canMoveCount);
+        updateUI(moves.length);
 
-        if (gameMode === 2 && turn === 2 && canMoveCount > 0 && !isThinking) {
+        // AIのターン処理
+        if (gameMode === 2 && turn === 2 && moves.length > 0 && !isThinking) {
             isThinking = true;
-            setTimeout(aiTurn, 700);
-        }
-    }
-
-    function aiTurn() {
-        const moves = getValidMoves(board, 2);
-        let bestMove = moves[0];
-        let bestScore = -Infinity;
-
-        for (let move of moves) {
-            let tempBoard = JSON.parse(JSON.stringify(board));
-            checkFlip(tempBoard, move.x, move.y, 2, true);
-            tempBoard[move.y][move.x] = 2;
-            let score = minimax(tempBoard, 3, false); // 3手先読み
-            if (score > bestScore) { bestScore = score; bestMove = move; }
-        }
-        isThinking = false;
-        place(bestMove.x, bestMove.y);
-    }
-
-    function minimax(vBoard, depth, isMax) {
-        if (depth === 0) return evaluate(vBoard);
-        const color = isMax ? 2 : 1;
-        const moves = getValidMoves(vBoard, color);
-        if (moves.length === 0) return evaluate(vBoard);
-
-        let res = isMax ? -Infinity : Infinity;
-        for (let m of moves) {
-            let next = JSON.parse(JSON.stringify(vBoard));
-            checkFlip(next, m.x, m.y, color, true);
-            next[m.y][m.x] = color;
-            let s = minimax(next, depth - 1, !isMax);
-            res = isMax ? Math.max(res, s) : Math.min(res, s);
-        }
-        return res;
-    }
-
-    function evaluate(vBoard) {
-        let s = 0;
-        for(let y=0; y<8; y++) for(let x=0; x<8; x++){
-            if(vBoard[y][x]===2) s += evalTable[y][x];
-            if(vBoard[y][x]===1) s -= evalTable[y][x];
-        }
-        return s;
-    }
-
-    function getValidMoves(vBoard, color) {
-        let m = [];
-        for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(checkFlip(vBoard, x, y, color, false) > 0) m.push({x, y});
-        return m;
-    }
-
-    function updateUI(canMoveCount) {
-        const msg = document.getElementById('msg');
-        const score = getScore();
-        document.getElementById('score').innerText = `黒: ${score.b} 枚 / 白: ${score.w} 枚`;
-
-        if (canMoveCount === 0) {
-            const nextP = (turn === 1) ? 2 : 1;
-            if (getValidMoves(board, nextP).length > 0) {
-                msg.innerText = (turn === 1 ? "黒" : "白") + "はパスです";
-                turn = nextP; setTimeout(draw, 1000);
-            } else {
-                msg.innerText = `終局！ ${score.b > score.w ? '黒の勝ち' : score.w > score.b ? '白の勝ち' : '引き分け'}`;
-            }
-        } else {
-            if(gameMode === 2 && turn === 2) msg.innerText = "AIが考え中...";
-            else msg.innerText = (turn === 1 ? "黒" : "白") + "の番です";
+            setTimeout(solve, 500); // 思考開始
         }
     }
 
@@ -228,27 +134,124 @@
         draw();
     }
 
+    // --- AIロジック（究極版） ---
+    function solve() {
+        const emptyCells = board.flat().filter(v => v === 0).length;
+        const depth = emptyCells <= 12 ? 12 : 6; // 終盤は深く読む
+        const result = alphaBeta(board, depth, -Infinity, Infinity, true);
+        isThinking = false;
+        if (result.move) place(result.move.x, result.move.y);
+        else {
+            // AIがパスの場合（本来ここには来ないはずだが念のため）
+            turn = 1; draw();
+        }
+    }
+
+    function alphaBeta(vBoard, depth, alpha, beta, isMax) {
+        const color = isMax ? 2 : 1;
+        const moves = getValidMoves(vBoard, color);
+        if (depth === 0 || moves.length === 0) return { score: evaluate(vBoard) };
+
+        // 枝刈り効率化のため良さそうな手から探索
+        moves.sort((a, b) => BASE_EVAL[b.y][b.x] - BASE_EVAL[a.y][a.x]);
+
+        let bestMove = null;
+        if (isMax) { // AI (白)
+            let v = -Infinity;
+            for (const m of moves) {
+                const next = simulate(vBoard, m.x, m.y, 2);
+                const res = alphaBeta(next, depth - 1, alpha, beta, false);
+                if (res.score > v) { v = res.score; bestMove = m; }
+                alpha = Math.max(alpha, v);
+                if (beta <= alpha) break;
+            }
+            return { score: v, move: bestMove };
+        } else { // プレイヤー (黒)
+            let v = Infinity;
+            for (const m of moves) {
+                const next = simulate(vBoard, m.x, m.y, 1);
+                const res = alphaBeta(next, depth - 1, alpha, beta, true);
+                if (res.score < v) { v = res.score; bestMove = m; }
+                beta = Math.min(beta, v);
+                if (beta <= alpha) break;
+            }
+            return { score: v, move: bestMove };
+        }
+    }
+
+    function evaluate(vBoard) {
+        let score = 0;
+        const empty = vBoard.flat().filter(v => v === 0).length;
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                if (vBoard[y][x] === 0) continue;
+                let val = BASE_EVAL[y][x];
+                // 確定石理論: 角が埋まっていればその周辺も安全
+                if ((x<=1 && y<=1 && vBoard[0][0]!==0) || (x>=6 && y<=1 && vBoard[0][7]!==0) ||
+                    (x<=1 && y>=6 && vBoard[7][0]!==0) || (x>=6 && y>=6 && vBoard[7][7]!==0)) {
+                    val = 20; 
+                }
+                score += (vBoard[y][x] === 2 ? val : -val);
+            }
+        }
+        // 開放度理論: 相手の手数を減らす
+        const mobility = (getValidMoves(vBoard, 2).length - getValidMoves(vBoard, 1).length) * (empty > 20 ? 30 : 5);
+        return score + mobility;
+    }
+
+    function simulate(vBoard, x, y, color) {
+        let next = vBoard.map(row => [...row]);
+        checkFlip(next, x, y, color, true);
+        next[y][x] = color;
+        return next;
+    }
+
+    // --- 共通ロジック ---
+    function getValidMoves(vBoard, color) {
+        let res = [];
+        for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(checkFlip(vBoard, x, y, color, false) > 0) res.push({x, y});
+        return res;
+    }
+
     function checkFlip(vBoard, x, y, color, doFlip) {
         if (vBoard[y][x] !== 0) return 0;
         let total = 0;
         const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-        for (let [dy, dx] of dirs) {
-            let tx = x + dx, ty = y + dy, cells = [];
+        for (const [dy, dx] of dirs) {
+            let tx = x + dx, ty = y + dy, flipped = [];
             while (ty>=0 && ty<8 && tx>=0 && tx<8 && vBoard[ty][tx] !== 0 && vBoard[ty][tx] !== color) {
-                cells.push([ty, tx]); ty += dy; tx += dx;
+                flipped.push([ty, tx]); ty += dy; tx += dx;
             }
-            if (ty>=0 && ty<8 && tx>=0 && tx<8 && vBoard[ty][tx] === color && cells.length > 0) {
-                total += cells.length;
-                if (doFlip) cells.forEach(([py, px]) => vBoard[py][px] = color);
+            if (ty>=0 && ty<8 && tx>=0 && tx<8 && vBoard[ty][tx] === color && flipped.length > 0) {
+                total += flipped.length;
+                if (doFlip) flipped.forEach(([py, px]) => vBoard[py][px] = color);
             }
         }
         return total;
     }
 
-    function getScore() {
-        let b = 0, w = 0;
-        board.flat().forEach(v => { if(v===1) b++; if(v===2) w++; });
-        return {b, w};
+    function updateUI(canMove) {
+        const b = board.flat().filter(v=>v===1).length;
+        const w = board.flat().filter(v=>v===2).length;
+        
+        // メッセージ生成
+        let msgText = "";
+        if (canMove === 0) {
+            // パスまたは終了
+            const nextP = (turn === 1) ? 2 : 1;
+            if (getValidMoves(board, nextP).length > 0) {
+                msgText = (turn === 1 ? "黒" : "白") + "はパス！";
+                turn = nextP; 
+                setTimeout(draw, 1000);
+            } else {
+                msgText = b > w ? "黒の勝ち！" : (w > b ? "白の勝ち！" : "引き分け");
+            }
+        } else {
+            msgText = (turn === 1 ? "黒(あなた)の番" : (gameMode===1 ? "白(相手)の番" : "AI思考中..."));
+        }
+
+        document.getElementById('msg').innerText = msgText;
+        document.getElementById('score').innerText = `黒: ${b} / 白: ${w}`;
     }
 
     init();
